@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+       xmlns:context="http://www.springframework.org/schema/context" xmlns:p="http://www.springframework.org/schema/p"
+       xmlns:aop="http://www.springframework.org/schema/aop" xmlns:tx="http://www.springframework.org/schema/tx"
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans.xsd
+		http://www.springframework.org/schema/context http://www.springframework.org/schema/context/spring-context.xsd
+		http://www.springframework.org/schema/aop http://www.springframework.org/schema/aop/spring-aop.xsd
+		http://www.springframework.org/schema/tx http://www.springframework.org/schema/tx/spring-tx.xsd
+		http://www.springframework.org/schema/util http://www.springframework.org/schema/util/spring-util.xsd">
+
+    <context:property-placeholder location="classpath:db.properties" ignore-unresolvable="true"/>
+    <!--主库 -->
+    <bean name="masterDataSource" class="com.alibaba.druid.pool.DruidDataSource">
+        <property name="username" value="${master.user}"></property>
+        <property name="password" value="${master.password}"></property>
+        <property name="url" value="${master.url}"></property>
+        <property name="testWhileIdle" value="true"></property>
+        <property name="maxActive" value="10"></property>
+        <property name="initialSize" value="3"></property>
+    </bean>
+
+    <!-- 从库-->
+    <bean name="slaveDataSource" class="com.alibaba.druid.pool.DruidDataSource">
+        <property name="username" value="${slave.user}"></property>
+        <property name="password" value="${slave.password}"></property>
+        <property name="url" value="${slave.url}"></property>
+        <property name="testWhileIdle" value="true"></property>
+        <property name="maxActive" value="10"></property>
+        <property name="initialSize" value="3"></property>
+    </bean>
+
+    <!-- 动态获取数据源-->
+    <bean id="dataSource" class="cn.dubidubi.base.rw.RouteDataSource">
+        <property name="targetDataSources">
+            <map key-type="java.lang.String">
+                <!--写库-->
+                <entry key="MASTER" value-ref="masterDataSource"/>
+                <!--读库-->
+                <entry key="SLAVE" value-ref="slaveDataSource"/>
+            </map>
+        </property>
+        <property name="defaultTargetDataSource" ref="masterDataSource"></property>
+    </bean>
+
+    <bean id="sqlSessionFactory" class="org.mybatis.spring.SqlSessionFactoryBean">
+        <property name="configLocation" value="classpath:sqlMapConfig.xml"></property>
+        <property name="dataSource" ref="dataSource"></property>
+        <property name="plugins">
+            <list>
+                <bean class="cn.dubidubi.base.rw.RouteDataSourcePlugin"></bean>
+            </list>
+        </property>
+    </bean>
+    <!-- 自动扫描mapper.xml与接口 需要名字完全一样 需更改 -->
+    <bean class="org.mybatis.spring.mapper.MapperScannerConfigurer">
+        <property name="basePackage" value="cn.dubidubi.dao"></property>
+    </bean>
+</beans>
